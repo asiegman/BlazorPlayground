@@ -1,0 +1,74 @@
+﻿@page "/filewatcher"
+
+@inject IJSRuntime JsRuntime
+
+@code {
+    string fileName = "";
+    string fileContents = "";
+    List<string> lineTail = new List<string>();
+    bool watchFile = false;
+
+    private async Task ChooseFile()
+    {
+        fileName = await JsRuntime.InvokeAsync<string>("ChooseFile");
+    }
+
+    private async Task ReadFile()
+    {
+        fileContents = await JsRuntime.InvokeAsync<string>("ReadFile");
+        lineTail = fileContents.Split('\n').ToList<string>().Skip(Math.Max(0, lineTail.Count - 20)).ToList<string>();
+    }
+
+    private async Task SaveFile()
+    {
+        await JsRuntime.InvokeAsync<object>("SaveFile", fileContents);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        System.Timers.Timer watchTimer = new System.Timers.Timer();
+        watchTimer.Elapsed += async (s, e) =>
+        {
+            if (!fileName.Equals("") && watchFile)
+            {
+                await ReadFile();
+            }
+        };
+        watchTimer.Interval = 1000;
+        watchTimer.Enabled = true;
+    }
+}
+
+<h1>File Watcher</h1>
+
+<p>I will watch a file for you, hopefully.</p>
+
+<EditForm Model="fileContents">
+    <div>
+        <button class="btn btn-primary" @onclick="ChooseFile">Choose File</button>
+        <InputText @bind-Value="fileName" />
+    </div>
+    <br>
+    <div>
+        <button class="btn btn-primary" @onclick="ReadFile">Read File</button>
+        <button class="btn btn-primary" @onclick="SaveFile">Save File</button>
+        <label>
+            <InputCheckbox @bind-Value="watchFile" />
+            Watch File?
+        </label>
+    </div>
+    <br>
+    <div>
+        <InputTextArea @bind-Value="fileContents" style="width: 800px; height: 400px; font-size: 1px" />
+    </div>   
+</EditForm>
+
+@if (!fileName.Equals("") && lineTail.Count > 0)
+{
+    <list>
+        @foreach (var line in lineTail)
+        {
+            <li>@line</li>
+        }
+    </list>
+}
